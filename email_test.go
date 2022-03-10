@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"bufio"
 	"bytes"
@@ -930,4 +931,28 @@ func TestParseSender(t *testing.T) {
 			t.Errorf(`%d: got %s != want %s or error "%t" != "%t"`, i+1, got, testcase.want, err != nil, testcase.haserr)
 		}
 	}
+}
+
+func TestSendMailWithImportance(t *testing.T) {
+
+	// Initialize pool
+	pool, err := NewPool(fmt.Sprintf("%s:%d", "192.168.1.10", 25), 4, smtp.PlainAuth("", "", "", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	e := NewEmail()
+	e.From = "Zaldy Baguinon <zaldy.baguinon@mdci.com.ph>"
+	e.To = []string{"zaldy.baguinon@mdci.com.ph"}
+
+	e.Subject = "Awesome Subject"
+	e.Text = []byte("Text Body is, of course, supported!\n")
+	e.HTML = []byte("<h1>Fancy Html is supported, too!</h1>\n")
+	e.Priority = HIGH
+
+	if err := pool.Send(e, time.Duration(3000)*time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+
+	pool.Close()
 }

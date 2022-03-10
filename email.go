@@ -26,16 +26,24 @@ import (
 	"unicode"
 )
 
+type Priority string
+
+const (
+	LOW    Priority = `Low`
+	NORMAL Priority = `Normal`
+	HIGH   Priority = `High`
+)
+
 const (
 	MaxLineLength      = 76                             // MaxLineLength is the maximum line length per RFC 2045
 	defaultContentType = "text/plain; charset=us-ascii" // defaultContentType is the default Content-Type according to RFC 2045, section 5.2
 )
 
 // ErrMissingBoundary is returned when there is no boundary given for a multipart entity
-var ErrMissingBoundary = errors.New("No boundary found for multipart entity")
+var ErrMissingBoundary = errors.New("no boundary found for multipart entity")
 
 // ErrMissingContentType is returned when there is no "Content-Type" header for a MIME entity
-var ErrMissingContentType = errors.New("No Content-Type found for MIME entity")
+var ErrMissingContentType = errors.New("no Content-Type found for MIME entity")
 
 // Email is the type used for email messages
 type Email struct {
@@ -48,6 +56,7 @@ type Email struct {
 	Text        []byte // Plaintext message (optional)
 	HTML        []byte // Html message (optional)
 	Sender      string // override From as SMTP envelope sender (optional)
+	Priority    Priority
 	Headers     textproto.MIMEHeader
 	Attachments []*Attachment
 	ReadReceipt []string
@@ -299,7 +308,7 @@ func (e *Email) AttachFile(filename string) (a *Attachment, err error) {
 // "e"'s fields To, Cc, From, Subject will be used unless they are present in
 // e.Headers. Unless set in e.Headers, "Date" will filled with the current time.
 func (e *Email) msgHeaders() (textproto.MIMEHeader, error) {
-	res := make(textproto.MIMEHeader, len(e.Headers)+6)
+	res := make(textproto.MIMEHeader, len(e.Headers)+7)
 	if e.Headers != nil {
 		for _, h := range []string{"Reply-To", "To", "Cc", "From", "Subject", "Date", "Message-Id", "MIME-Version"} {
 			if v, ok := e.Headers[h]; ok {
@@ -337,6 +346,15 @@ func (e *Email) msgHeaders() (textproto.MIMEHeader, error) {
 	if _, ok := res["MIME-Version"]; !ok {
 		res.Set("MIME-Version", "1.0")
 	}
+
+	if _, ok := res["Importance"]; !ok {
+		res.Set("Importance", string(NORMAL))
+	}
+
+	if e.Priority != "" {
+		res.Set("Importance", string(e.Priority))
+	}
+
 	for field, vals := range e.Headers {
 		if _, ok := res[field]; !ok {
 			res[field] = vals
@@ -519,7 +537,7 @@ func (e *Email) Send(addr string, a smtp.Auth) error {
 	}
 	// Check to make sure there is at least one recipient and one "From" address
 	if e.From == "" || len(to) == 0 {
-		return errors.New("Must specify at least one From address and one To address")
+		return errors.New("must specify at least one From address and one To address")
 	}
 	sender, err := e.parseSender()
 	if err != nil {
@@ -566,7 +584,7 @@ func (e *Email) SendWithTLS(addr string, a smtp.Auth, t *tls.Config) error {
 	}
 	// Check to make sure there is at least one recipient and one "From" address
 	if e.From == "" || len(to) == 0 {
-		return errors.New("Must specify at least one From address and one To address")
+		return errors.New("must specify at least one From address and one To address")
 	}
 	sender, err := e.parseSender()
 	if err != nil {
@@ -638,7 +656,7 @@ func (e *Email) SendWithStartTLS(addr string, a smtp.Auth, t *tls.Config) error 
 	}
 	// Check to make sure there is at least one recipient and one "From" address
 	if e.From == "" || len(to) == 0 {
-		return errors.New("Must specify at least one From address and one To address")
+		return errors.New("must specify at least one From address and one To address")
 	}
 	sender, err := e.parseSender()
 	if err != nil {
