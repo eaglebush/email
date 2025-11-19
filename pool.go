@@ -44,8 +44,28 @@ var (
 	ErrTimeout = errors.New("timed out")
 )
 
-func NewPool(address string, count int, auth smtp.Auth, opt_tlsConfig ...*tls.Config) (pool *Pool, err error) {
-	pool = &Pool{
+// func NewPool(address string, count int, auth smtp.Auth, opt_tlsConfig ...*tls.Config) (pool *Pool, err error) {
+// 	pool = &Pool{
+// 		addr:    address,
+// 		auth:    auth,
+// 		max:     count,
+// 		clients: make(chan *client, count),
+// 		rebuild: make(chan struct{}),
+// 		closing: make(chan struct{}),
+// 		mut:     &sync.Mutex{},
+// 	}
+// 	if len(opt_tlsConfig) == 1 {
+// 		pool.tlsConfig = opt_tlsConfig[0]
+// 	} else if host, _, e := net.SplitHostPort(address); e != nil {
+// 		return nil, e
+// 	} else {
+// 		pool.tlsConfig = &tls.Config{ServerName: host}
+// 	}
+// 	return
+// }
+
+func NewPool(address string, count int, auth smtp.Auth, opt_tlsConfig ...*tls.Config) (*Pool, error) {
+	pool := &Pool{
 		addr:    address,
 		auth:    auth,
 		max:     count,
@@ -54,14 +74,14 @@ func NewPool(address string, count int, auth smtp.Auth, opt_tlsConfig ...*tls.Co
 		closing: make(chan struct{}),
 		mut:     &sync.Mutex{},
 	}
+
 	if len(opt_tlsConfig) == 1 {
-		pool.tlsConfig = opt_tlsConfig[0]
-	} else if host, _, e := net.SplitHostPort(address); e != nil {
-		return nil, e
+		pool.tlsConfig = cloneTLSWithServerName(address, opt_tlsConfig[0])
 	} else {
-		pool.tlsConfig = &tls.Config{ServerName: host}
+		pool.tlsConfig = cloneTLSWithServerName(address, nil)
 	}
-	return
+
+	return pool, nil
 }
 
 // go1.1 didn't have this method
@@ -352,6 +372,26 @@ func addressLists(lists ...[]string) ([]string, error) {
 	}
 
 	return combined, nil
+}
+
+func cloneTLSWithServerName(addr string, cfg *tls.Config) *tls.Config {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// if no port in addr, just use the whole thing
+		host = addr
+	}
+
+	// If no config, create a minimal one
+	if cfg == nil {
+		return &tls.Config{ServerName: host}
+	}
+
+	// Clone so we don't mutate caller's config in-place
+	out := cfg.Clone()
+	if out.ServerName == "" {
+		out.ServerName = host
+	}
+	return out
 }
 
 // Close immediately changes the pool's state so no new connections will be

@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/rand"
+	"crypto/tls"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -729,19 +730,40 @@ TGV0J3MganVzdCBwcmV0ZW5kIHRoaXMgaXMgcmF3IEpQRUcgZGF0YS4=
 	}
 }
 
-func ExampleGmail() {
+func TestExampleGmail(t *testing.T) {
 	e := NewEmail()
 	e.From = "Jordan Wright <test@gmail.com>"
-	e.To = []string{"test@example.com"}
-	e.Bcc = []string{"test_bcc@example.com"}
-	e.Cc = []string{"test_cc@example.com"}
+	e.To = []string{"zaldy.baguinon@mdci.com.ph"}
+	//e.Bcc = []string{"test_bcc@example.com"}
+	//e.Cc = []string{"test_cc@example.com"}
 	e.Subject = "Awesome Subject"
 	e.Text = []byte("Text Body is, of course, supported!\n")
 	e.HTML = []byte("<h1>Fancy Html is supported, too!</h1>\n")
 	e.Send("smtp.gmail.com:587", smtp.PlainAuth("", e.From, "password123", "smtp.gmail.com"))
 }
 
-func ExampleAttach() {
+func TestExampleSendGrid(t *testing.T) {
+	e := NewEmail()
+	//e.Sender = "Information Services <information.services@vdimdci.com.ph>"
+	e.From = "Information Services <information.services@vdimdci.com.ph>"
+	e.To = []string{"zaldy.baguinon@mdci.com.ph"}
+	//e.Bcc = []string{"test_bcc@example.com"}
+	//e.Cc = []string{"test_cc@example.com"}
+	e.Subject = "Awesome Subject"
+	e.Text = []byte("Text Body is, of course, supported!\n")
+	e.HTML = []byte("<h1>Fancy Html is supported, too!</h1>\n")
+	if err := e.SendWithStartTLS(
+		"smtp.sendgrid.net:587",
+		smtp.PlainAuth("", "apikey", "", "smtp.sendgrid.net"),
+		&tls.Config{
+			InsecureSkipVerify: true,
+		}); err != nil {
+		t.Logf("error: %s", err)
+		t.Fail()
+	}
+}
+
+func TestExampleAttach(t *testing.T) {
 	e := NewEmail()
 	e.AttachFile("test.txt")
 }

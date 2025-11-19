@@ -595,6 +595,9 @@ func (e *Email) SendWithTLS(addr string, a smtp.Auth, t *tls.Config) error {
 		return err
 	}
 
+	// Ensure ServerName is set
+	t = cloneTLSWithServerName(addr, t)
+
 	conn, err := tls.Dial("tcp", addr, t)
 	if err != nil {
 		return err
@@ -677,6 +680,10 @@ func (e *Email) SendWithStartTLS(addr string, a smtp.Auth, t *tls.Config) error 
 	if err = c.Hello("localhost"); err != nil {
 		return err
 	}
+
+	// Ensure ServerName is set before STARTTLS
+	t = cloneTLSWithServerName(addr, t)
+
 	// Use TLS if available
 	if ok, _ := c.Extension("STARTTLS"); ok {
 		if err = c.StartTLS(t); err != nil {
